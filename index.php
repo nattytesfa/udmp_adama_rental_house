@@ -60,8 +60,8 @@ header("Expires: 0");
         .search-form .btn-reset:hover{border-color:#0d9488;color:#0d9488}
 
         /* GRID */
-        .listings{max-width:1200px;margin:0 auto;padding:24px 32px;flex:1}
-        .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px}
+        .listings{width:100%;max-width:1200px;margin:0 auto;padding:24px 32px;flex:1}
+        .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
         .card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid #f1f5f9;transition:all .3s;position:relative}
         .card:hover{transform:translateY(-4px);box-shadow:0 12px 30px rgba(0,0,0,.08);border-color:#e2e8f0}
         .card-img{position:relative;height:210px;overflow:hidden}
