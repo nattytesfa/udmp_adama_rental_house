@@ -80,7 +80,30 @@ if(!isset($_SESSION['user_id'])){
 
         .error-msg{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:500;margin-bottom:20px;display:flex;align-items:center;gap:10px}
 
+        /* Success modal */
+        .success-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:1000;align-items:center;justify-content:center;padding:20px;animation:fadeIn .25s ease}
+        .success-overlay.active{display:flex}
+        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+        .success-modal{background:#fff;border-radius:18px;max-width:440px;width:100%;padding:40px 32px;text-align:center;box-shadow:0 25px 60px rgba(0,0,0,.3);animation:modalPop .3s cubic-bezier(.34,1.56,.64,1)}
+        @keyframes modalPop{from{opacity:0;transform:translateY(20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+        .success-icon{width:72px;height:72px;margin:0 auto 20px;border-radius:50%;background:linear-gradient(135deg,#059669,#10b981);display:flex;align-items:center;justify-content:center;color:#fff;font-size:30px;box-shadow:0 10px 30px rgba(16,185,129,.35)}
+        .success-modal h2{font-size:22px;font-weight:800;color:#0f172a;margin-bottom:10px}
+        .success-modal p{font-size:14px;color:#64748b;line-height:1.7;margin-bottom:28px}
+        .success-modal .steps{background:#f8fafc;border:1px solid #f1f5f9;border-radius:12px;padding:16px 20px;margin-bottom:28px;text-align:left}
+        .success-modal .step{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+        .success-modal .step:last-child{margin-bottom:0}
+        .success-modal .step-icon{width:28px;height:28px;border-radius:8px;background:rgba(13,148,136,.1);color:#0d9488;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;margin-top:1px}
+        .success-modal .step strong{display:block;font-size:13px;color:#0f172a;font-weight:600}
+        .success-modal .step span{font-size:12px;color:#94a3b8}
+        .success-modal .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .success-modal .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 16px;border-radius:10px;font-size:14px;font-weight:700;text-decoration:none;font-family:inherit;cursor:pointer;transition:all .2s;border:none}
+        .success-modal .btn-primary{background:linear-gradient(135deg,#0d9488,#14b8a6);color:#fff}
+        .success-modal .btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(13,148,136,.35)}
+        .success-modal .btn-outline{background:#f1f5f9;color:#334155}
+        .success-modal .btn-outline:hover{background:#e2e8f0;color:#0f172a}
+
         @media(max-width:640px){
+            .success-modal .btn-row{grid-template-columns:1fr}
             .form-row{grid-template-columns:1fr}
             .form-page{padding:0 12px;margin:20px auto}
             .form-card{padding:20px}
@@ -288,7 +311,7 @@ if(!isset($_SESSION['user_id'])){
                 $house_id = mysqli_insert_id($conn);
                 $req_sql = "INSERT INTO requests (user_id, house_id, status, created_at) VALUES ($user_id, $house_id, 0, NOW())";
                 mysqli_query($conn, $req_sql);
-                echo "<script>alert('Property submitted for approval! It will appear once reviewed by an admin.'); window.location='manage_houses.php';</script>";
+                $submitted = true;
             } else {
                 echo "<script>alert('Database error. Please try again.');</script>";
             }
@@ -297,5 +320,33 @@ if(!isset($_SESSION['user_id'])){
         }
     }
     ?>
+
+    <?php if(!empty($submitted)): ?>
+        <div class="success-overlay active" id="successModal">
+            <div class="success-modal">
+                <div class="success-icon"><i class="fas fa-check"></i></div>
+                <h2>Property Submitted! 🎉</h2>
+                <p>Your listing has been sent to our admin team for review. Once approved, it will appear on the property listings for tenants to find.</p>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-icon"><i class="fas fa-pen-to-square"></i></div>
+                        <div><strong>Submission received</strong><span>Your details have been saved successfully.</span></div>
+                    </div>
+                    <div class="step">
+                        <div class="step-icon"><i class="fas fa-shield-halved"></i></div>
+                        <div><strong>Admin review</strong><span>An admin will verify your listing shortly.</span></div>
+                    </div>
+                    <div class="step">
+                        <div class="step-icon"><i class="fas fa-eye"></i></div>
+                        <div><strong>Go live</strong><span>Once approved, tenants can find and contact you.</span></div>
+                    </div>
+                </div>
+                <div class="btn-row">
+                    <a href="manage_houses.php" class="btn btn-outline"><i class="fas fa-th-large"></i> Dashboard</a>
+                    <a href="post_house.php" class="btn btn-primary"><i class="fas fa-plus"></i> Add Another</a>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
 </body>
 </html>
