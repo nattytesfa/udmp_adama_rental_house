@@ -300,9 +300,9 @@ if(!isset($_SESSION['user_id'])){
                 UPLOAD_ERR_EXTENSION  => 'Upload blocked by server extension.',
                 default               => 'Unknown upload error (code: ' . $err_code . ').'
             };
-            echo "<script>alert('Upload failed: " . addslashes($err_msg) . "');</script>";
+            $toast_error = 'Upload failed: ' . $err_msg;
         } elseif(!is_writable($upload_dir)){
-            echo "<script>alert('Upload failed: The uploads folder is not writable. Check permissions.');</script>";
+            $toast_error = 'Upload failed: The uploads folder is not writable. Check permissions.';
         } elseif(move_uploaded_file($_FILES['house_image']['tmp_name'], $target)){
             $sql = "INSERT INTO houses (kebele, street, house_number, category, amount, phone, map_link, image, description, user_id, video_file, status, is_approved, created_at) 
                     VALUES ('$kebele', '$street', '$h_num', '$category', '$amount', '$phone', '$map', '$imgName', '$desc', $user_id, '$videoName', 'Pending', 0, NOW())";
@@ -313,10 +313,10 @@ if(!isset($_SESSION['user_id'])){
                 mysqli_query($conn, $req_sql);
                 $submitted = true;
             } else {
-                echo "<script>alert('Database error. Please try again.');</script>";
+                $toast_error = 'A database error occurred. Please try again.';
             }
         } else {
-            echo "<script>alert('Upload failed: move_uploaded_file returned false. Check server error log.');</script>";
+            $toast_error = 'Upload failed: The file could not be moved to the server. Please check server logs.';
         }
     }
     ?>
@@ -347,6 +347,15 @@ if(!isset($_SESSION['user_id'])){
                 </div>
             </div>
         </div>
+    <?php endif; ?>
+
+    <?php include(__DIR__ . '/popup.php'); ?>
+    <?php if(!empty($toast_error)): ?>
+        <script>
+            window.addEventListener('DOMContentLoaded', function(){
+                showToast(<?php echo json_encode($toast_error); ?>, 'error', 'Upload failed');
+            });
+        </script>
     <?php endif; ?>
 </body>
 </html>

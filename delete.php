@@ -3,13 +3,14 @@ include('db.php');
 include('session_config.php');
 session_start(); //
 
+$status = null; // ['type' => 'success'|'error', 'message' => '...', 'redirect' => '...', 'title' => '...']
+
 // 1. Check if the user is logged in
 if(!isset($_SESSION['user_id'])){
-    echo "<script>alert('Please login first'); window.location='login.php';</script>";
-    exit();
+    $status = ['type' => 'error', 'message' => 'You need to log in first.', 'title' => 'Login required', 'redirect' => 'login.php'];
 }
 
-if(isset($_POST['delete_btn'])){
+if($status === null && isset($_POST['delete_btn'])){
     $id = (int)$_POST['id']; // Cast to integer for security
     $input_key = isset($_POST['key']) ? mysqli_real_escape_string($conn, $_POST['key']) : null;
     $current_user = $_SESSION['user_id'];
@@ -39,13 +40,34 @@ if(isset($_POST['delete_btn'])){
             
             // Delete from database
             mysqli_query($conn, "DELETE FROM houses WHERE id = $id");
-            echo "<script>alert('Post Removed successfully'); window.location='index.php';</script>";
+            $status = ['type' => 'success', 'message' => 'Your listing was removed successfully.', 'title' => 'Listing deleted', 'redirect' => 'index.php'];
         } else {
-            echo "<script>alert('Incorrect Secret Key!'); window.location='index.php';</script>";
+            $status = ['type' => 'error', 'message' => 'The secret key you entered is incorrect.', 'title' => 'Incorrect key', 'redirect' => 'index.php'];
         }
     } else {
         // This triggers if the ID doesn't exist OR it belongs to a different landlord
-        echo "<script>alert('Unauthorized! You can only delete your own posts.'); window.location='index.php';</script>";
+        $status = ['type' => 'error', 'message' => 'You can only delete your own posts.', 'title' => 'Unauthorized', 'redirect' => 'index.php'];
     }
 }
 ?>
+<?php if($status !== null): ?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdamaRent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+</head>
+<body style="margin:0;background:#f8fafc;font-family:'Inter',sans-serif">
+    <?php include(__DIR__ . '/popup.php'); ?>
+    <script>
+        window.addEventListener('DOMContentLoaded', function(){
+            showToast(<?php echo json_encode($status['message']); ?>, <?php echo json_encode($status['type']); ?>, <?php echo json_encode($status['title']); ?>);
+            setTimeout(function(){ window.location = <?php echo json_encode($status['redirect']); ?>; }, 1800);
+        });
+    </script>
+</body>
+</html>
+<?php endif; ?>

@@ -92,9 +92,9 @@ $result = mysqli_query($conn, $sql);
                             onclick="showDetails('<?php echo addslashes($row['full_name']); ?>', '<?php echo number_format($row['amount']); ?>', '<?php echo addslashes($row['description'] ?? ''); ?>', '<?php echo $row['image']; ?>')">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <form action="process_request.php" method="POST" style="display:inline;" onsubmit="return confirm('Delete this listing permanently?')">
+                        <form action="process_request.php" method="POST" style="display:inline;" id="del-house-<?php echo $row['id']; ?>">
                             <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
-                            <button type="submit" name="action" value="delete_house" class="btn-icon btn-icon-del" title="Delete"><i class="fas fa-trash"></i></button>
+                            <button type="button" name="action" value="delete_house" class="btn-icon btn-icon-del" title="Delete" onclick="confirmListingDelete('<?php echo $row['id']; ?>')"><i class="fas fa-trash"></i></button>
                         </form>
                         </div>
                     </td>
@@ -131,6 +131,14 @@ function showDetails(name, price, desc, img) {
 }
 function closeModal() { document.getElementById('viewModal').style.display = "none"; }
 window.onclick = function(e) { if(e.target == document.getElementById('viewModal')) closeModal(); }
+function confirmListingDelete(id){
+    adamaConfirm({
+        title: 'Delete this listing?',
+        message: 'This property listing will be permanently removed from the site. This action cannot be undone.',
+        confirmText: 'Delete Listing',
+        onConfirm: function(){ document.getElementById('del-house-' + id).submit(); }
+    });
+}
 </script>
 </body>
 </html>

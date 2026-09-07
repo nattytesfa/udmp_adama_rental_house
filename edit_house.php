@@ -34,8 +34,7 @@ if(isset($_POST['update'])){
                    WHERE id=$house_id AND user_id=$user_id";
     
     if(mysqli_query($conn, $update_sql)){
-        echo "<script>alert('Listing updated successfully!'); window.location='manage_houses.php';</script>";
-        exit();
+        $updated = true;
     }
 }
 ?>
@@ -154,5 +153,15 @@ if(isset($_POST['update'])){
             </form>
         </div>
     </div>
+
+    <?php include(__DIR__ . '/popup.php'); ?>
+    <?php if(!empty($updated)): ?>
+        <script>
+            window.addEventListener('DOMContentLoaded', function(){
+                showToast('Your listing has been updated successfully.', 'success', 'Update successful');
+                setTimeout(function(){ window.location = 'manage_houses.php'; }, 1800);
+            });
+        </script>
+    <?php endif; ?>
 </body>
 </html>

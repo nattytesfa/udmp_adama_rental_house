@@ -200,9 +200,9 @@ $stats = mysqli_fetch_assoc(mysqli_query($conn, "SELECT
                             <a href="edit_house.php?id=<?php echo $row['id']; ?>" class="btn-edit">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
-                            <form action="delete.php" method="POST" onsubmit="return confirm('Permanently delete this listing?')" style="display:contents">
+                            <form action="delete.php" method="POST" style="display:contents" id="del-myhouse-<?php echo $row['id']; ?>">
                                 <input type="hidden" name="id" value="<?php echo $row['id']; ?>">
-                                <button type="submit" name="delete_btn" class="btn-delete"><i class="fas fa-trash"></i> Delete</button>
+                                <button type="button" name="delete_btn" class="btn-delete" onclick="confirmMyListingDelete('<?php echo $row['id']; ?>')"><i class="fas fa-trash"></i> Delete</button>
                             </form>
                         </div>
                     </div>
@@ -217,5 +217,17 @@ $stats = mysqli_fetch_assoc(mysqli_query($conn, "SELECT
     </div>
 
     <?php include('footer.php'); ?>
+
+    <?php include(__DIR__ . '/popup.php'); ?>
+    <script>
+    function confirmMyListingDelete(id){
+        adamaConfirm({
+            title: 'Delete this listing?',
+            message: 'This property and its details will be permanently removed from your dashboard. This action cannot be undone.',
+            confirmText: 'Delete Listing',
+            onConfirm: function(){ document.getElementById('del-myhouse-' + id).submit(); }
+        });
+    }
+    </script>
 </body>
 </html>

@@ -57,3 +57,4 @@ $current_page = basename($_SERVER['PHP_SELF']);
     });
 })();
 </script>
+    <?php include(__DIR__ . '/popup.php'); ?>
