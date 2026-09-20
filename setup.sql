@@ -1,4 +1,4 @@
-Git pullopencode-- AdamaRent Database Setup (structural only — NO auto admin account)
+-- AdamaRent Database Setup (structural only — NO auto admin account)
 -- Run this once after cloning, OR just visit setup.php in your browser.
 
 CREATE DATABASE IF NOT EXISTS rental_db;
