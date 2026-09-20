@@ -3,6 +3,7 @@ include('includes/session_config.php');
 session_start();
 include('includes/db.php');
 include('includes/security.php');
+include('includes/image_convert.php');
 if(!isset($_SESSION['csrf_token'])) csrf_token();
 
 if(!isset($_SESSION['user_id'])){
@@ -58,8 +59,7 @@ function process_upload($file, $upload_dir, $allowed){
     }
     if(in_array($ext, ['heic', 'heif'], true)){
         $jpgName = preg_replace('/\.(heic|heif)$/i', '', $fname) . '.jpg';
-        $out = shell_exec("/usr/bin/sips -s format jpeg " . escapeshellarg($target) . " --out " . escapeshellarg($upload_dir . '/' . $jpgName) . " 2>&1");
-        if($out !== null && file_exists($upload_dir . '/' . $jpgName) && filesize($upload_dir . '/' . $jpgName) > 0){
+        if(heic_convert_to_jpg($target, $upload_dir . '/' . $jpgName)){
             @unlink($target);
             $fname = $jpgName;
         } else {
