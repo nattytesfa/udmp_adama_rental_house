@@ -1,7 +1,9 @@
 <?php
-include('session_config.php');
+include('includes/session_config.php');
 session_start();
-include('db.php');
+include('includes/db.php');
+include('includes/security.php');
+if(!isset($_SESSION['csrf_token'])) csrf_token();
 
 function dTimeAgo($datetime){
     $diff = time() - strtotime($datetime);
@@ -39,9 +41,16 @@ if($house){
 $status    = $house['status'] ?? '';
 $isAvail   = ($status === 'Available');
 $pendingReqId = 0;
+$callState = 'ask';
 if(isset($_SESSION['user_id']) && $id > 0){
-    $rc = mysqli_query($conn, "SELECT id FROM rental_requests WHERE user_id=" . (int)$_SESSION['user_id'] . " AND house_id=$id AND status='pending' LIMIT 1");
+    $me = (int)$_SESSION['user_id'];
+    $rc = mysqli_query($conn, "SELECT id FROM rental_requests WHERE user_id=$me AND house_id=$id AND status='pending' LIMIT 1");
     if($rc && ($rrow = mysqli_fetch_assoc($rc))) $pendingReqId = (int)$rrow['id'];
+    $cr = mysqli_query($conn, "SELECT status FROM rental_requests WHERE user_id=$me AND house_id=$id ORDER BY id DESC LIMIT 1");
+    if($cr && ($crow = mysqli_fetch_assoc($cr))){
+        if($crow['status'] === 'accepted') $callState = 'call';
+        elseif($crow['status'] === 'pending') $callState = 'wait';
+    }
 }
 $amenities = [];
 if($house){
@@ -55,7 +64,7 @@ if($house){
     }
 }
 $rentHref  = isset($_SESSION['user_id'])
-    ? 'rent_request.php?house=' . $id
+    ? '#rent'
     : 'login.php?redirect=' . urlencode('rent_request.php?house=' . $id);
 ?>
 <!DOCTYPE html>
@@ -177,6 +186,7 @@ $rentHref  = isset($_SESSION['user_id'])
     </style>
 </head>
 <body>
+    <?php include(__DIR__ . '/pending_invite_notice.php'); ?>
     <nav class="navbar">
         <a href="Home.php" class="nav-brand">
             <div class="nav-brand-icon">AR</div>
@@ -249,7 +259,7 @@ $rentHref  = isset($_SESSION['user_id'])
                 <div class="actions">
                     <?php if($isAvail): ?>
                         <a href="<?php echo htmlspecialchars($rentHref); ?>" id="rentBtn" class="btn-action btn-rent"><i class="fas <?php echo $pendingReqId ? 'fa-xmark' : 'fa-hand-holding-heart'; ?>"></i> <?php echo $pendingReqId ? 'Cancel Request' : 'Request to Rent'; ?></a>
-                        <a href="tel:<?php echo htmlspecialchars($house['phone']); ?>" class="btn-action btn-call"><i class="fas fa-phone"></i> Call Owner</a>
+                        <button type="button" id="callOwnerBtn" class="btn-action btn-call"><i class="fas fa-phone"></i> Call Owner</button>
                     <?php else: ?>
                         <div class="rented-note"><i class="fas fa-lock"></i> This property is currently rented and cannot be reserved.</div>
                     <?php endif; ?>
@@ -259,7 +269,7 @@ $rentHref  = isset($_SESSION['user_id'])
                 </div>
 
                 <div class="owner">
-                    <div class="owner-av"><?php echo strtoupper(substr($house['full_name'] ?? 'O', 0, 1)); ?></div>
+                    <div class="owner-av"><?php echo htmlspecialchars(strtoupper(substr($house['full_name'] ?? 'O', 0, 1))); ?></div>
                     <div>
                         <div class="owner-name"><?php echo htmlspecialchars($house['full_name'] ?? 'Property Owner'); ?></div>
                         <div class="owner-sub"><i class="fas fa-clock" style="margin-right:4px"></i>Listed <?php echo dTimeAgo($house['created_at']); ?></div>
@@ -330,7 +340,11 @@ $rentHref  = isset($_SESSION['user_id'])
                         onConfirm: function(){
                             var btn = link;
                             btn.disabled = true;
-                            fetch('rental_request_action.php?action=cancel&id=' + reqId, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                            var body = new FormData();
+                            body.append('action', 'cancel');
+                            body.append('id', reqId);
+                            body.append('csrf_token', <?php echo json_encode($_SESSION['csrf_token']); ?>);
+                            fetch('rental_request_action.php', {method: 'POST', body: body, headers: {'X-Requested-With': 'XMLHttpRequest'}})
                                 .then(function(r){ return r.json(); })
                                 .then(function(data){
                                     showToast(data.message, data.type, data.title);
@@ -354,7 +368,10 @@ $rentHref  = isset($_SESSION['user_id'])
                         onConfirm: function(){
                             var btn = link;
                             btn.disabled = true;
-                            fetch('rent_request.php?house=<?php echo $id; ?>', {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+                            var body = new FormData();
+                            body.append('house', <?php echo (int)$id; ?>);
+                            body.append('csrf_token', <?php echo json_encode($_SESSION['csrf_token']); ?>);
+                            fetch('rent_request.php', {method: 'POST', body: body, headers: {'X-Requested-With': 'XMLHttpRequest'}})
                                 .then(function(r){ return r.json(); })
                                 .then(function(data){
                                     if(data.type === 'login_needed'){ window.location = data.redirect; return; }
@@ -377,7 +394,24 @@ $rentHref  = isset($_SESSION['user_id'])
             });
         }
         <?php endif; ?>
+
+        var callOwnerBtn = document.getElementById('callOwnerBtn');
+        if(callOwnerBtn){
+            callOwnerBtn.addEventListener('click', function(e){
+                e.preventDefault();
+                var state = <?php echo json_encode($callState); ?>;
+                var phone = <?php echo json_encode($house['phone'] ?? ''); ?>;
+                if(state === 'call'){
+                    showToast('Calling the property owner...', 'success', 'Calling owner');
+                    window.location.href = 'tel:' + phone;
+                } else if(state === 'wait'){
+                    showToast('Wait until your request is approved.', 'info', 'Request pending');
+                } else {
+                    showToast('First ask a request.', 'info', 'Request required');
+                }
+            });
+        }
     </script>
-    <?php include(__DIR__ . '/popup.php'); ?>
+    <?php include(__DIR__ . '/includes/popup.php'); ?>
 </body>
 </html>

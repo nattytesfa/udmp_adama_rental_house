@@ -1,8 +1,9 @@
 <?php
-include('session_config.php');
+include('includes/session_config.php');
 session_start();
-include('db.php');
-include('mail_helper.php');
+include('includes/db.php');
+include('includes/mail_helper.php');
+include('includes/security.php');
 
 $email = trim($_GET['email'] ?? '');
 if ($email === '' && isset($_SESSION['verify_pending_email'])) {
@@ -14,6 +15,12 @@ $resend_msg = '';
 if (isset($_GET['resend'])) {
     if ($_GET['resend'] === 'sent') {
         $resend_msg = ['ok', 'A fresh verification link has been sent. Check your inbox.'];
+    } elseif ($_GET['resend'] === 'failed') {
+        if (isset($_GET['why']) && $_GET['why'] === 'ip_auth') {
+            $resend_msg = ['err', 'Brevo is blocking this server\'s IP address. Open app.brevo.com → Settings → Security → Authorized IPs, add the IP, then click resend.'];
+        } else {
+            $resend_msg = ['err', 'There was a problem sending the email just now. Please try again in a few minutes.'];
+        }
     } elseif ($_GET['resend'] === 'already') {
         $resend_msg = ['ok', 'This email is already verified — you can sign in now.'];
     } elseif ($_GET['resend'] === 'noaccount') {
@@ -102,7 +109,8 @@ if (!mail_env_is_configured() && $email !== '') {
 
         <div class="actions">
             <form method="POST" action="resend_verification.php" style="display:inline-block">
-                <input type="hidden" name="email" value="<?php echo $email; ?>">
+                <?php echo csrf_field(); ?>
+                <input type="hidden" name="email" value="<?php echo htmlspecialchars($email); ?>">
                 <button type="submit" name="resend" class="btn">Resend verification link</button>
             </form>
             <a href="login.php" class="btn-line">Back to Sign In</a>

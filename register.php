@@ -1,8 +1,9 @@
 <?php
-include('session_config.php');
+include('includes/session_config.php');
 session_start();
-include('db.php');
-include('mail_helper.php');
+include('includes/db.php');
+include('includes/mail_helper.php');
+include('includes/security.php');
 
 function has_admin(): bool {
     global $conn;
@@ -22,13 +23,16 @@ function setup_key_valid(string $submitted): bool {
 $google_enabled = defined('GOOGLE_CLIENT_ID') && GOOGLE_CLIENT_ID !== '';
 
 if(isset($_POST['register'])){
+    csrf_validate();
     $name = mysqli_real_escape_string($conn, $_POST['full_name']);
     $email = mysqli_real_escape_string($conn, $_POST['email']);
     $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
     $setup_key = trim($_POST['setup_key'] ?? '');
 
     $check_email = mysqli_query($conn, "SELECT id FROM users WHERE email='$email'");
-    if($check_email && mysqli_num_rows($check_email) > 0){
+    if (!validate_email_before_send($_POST['email'])['ok']) {
+        $error = "That email address is not valid or its domain can't receive mail. Please double-check it and try again.";
+    } elseif($check_email && mysqli_num_rows($check_email) > 0){
         $error = "An account with this email already exists.";
     } elseif ($setup_key !== '' && !has_admin() && setup_key_valid($setup_key)) {
         $sql = "INSERT INTO users (full_name, email, password, is_admin, status, email_verified) VALUES ('$name', '$email', '$pass', 2, 1, 1)";
@@ -45,8 +49,15 @@ if(isset($_POST['register'])){
         $sql = "INSERT INTO users (full_name, email, password, email_verified, verify_token, verify_expires) VALUES ('$name', '$email', '$pass', 0, '$token', '$expires')";
         if(mysqli_query($conn, $sql)){
             $_SESSION['verify_pending_email'] = $email;
-            send_verification_email($email, $name, $token);
-            header("Location: verify_pending.php?email=" . urlencode($email));
+            $mailResult = send_verification_email($email, $name, $token);
+            $loc = 'verify_pending.php?email=' . urlencode($email);
+            if ($mailResult['ok'] === false && $mailResult['info'] !== 'dev') {
+                $loc .= '&resend=failed';
+                if ($mailResult['info'] === 'brevo ip not authorized') {
+                    $loc .= '&why=ip_auth';
+                }
+            }
+            header("Location: $loc");
             exit();
         } else {
             $error = "Registration failed. Please try again.";
@@ -137,6 +148,7 @@ if(isset($_POST['register'])){
             <?php endif; ?>
 
             <form method="POST">
+                <?php echo csrf_field(); ?>
                 <div class="form-group">
                     <label>Full Name</label>
                     <div class="input-wrapper">
