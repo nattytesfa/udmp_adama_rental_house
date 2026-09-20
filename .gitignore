@@ -7,3 +7,6 @@ config_secrets.production.php
 
 logs/*
 !logs/.htaccess
+
+.DS_Store
+.vscode/
