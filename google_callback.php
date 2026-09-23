@@ -4,7 +4,14 @@ session_start();
 include('includes/db.php');
 include('includes/mail_helper.php');
 
-function google_redirect($target = 'login.php?google=error') {
+function google_redirect($target = 'login.php?google=error', $reason = '') {
+    if ($reason !== '') {
+        @file_put_contents(
+            __DIR__ . '/logs/google_error.log',
+            '[' . date('Y-m-d H:i:s') . '] ' . $reason . ' ' . $_SERVER['REQUEST_URI'] . "\n",
+            FILE_APPEND
+        );
+    }
     header("Location: $target");
     exit();
 }
@@ -14,16 +21,16 @@ $err_state = $_SESSION['google_oauth_state'] ?? '';
 unset($_SESSION['google_oauth_state']);
 $state = $_GET['state'] ?? '';
 if ($state === '' || $err_state === '' || !hash_equals($err_state, $state)) {
-    google_redirect('login.php?google=state');
+    google_redirect('login.php?google=state', 'state-mismatch');
 }
 if (isset($_GET['error'])) {
-    google_redirect('login.php?google=denied');
+    google_redirect('login.php?google=denied', 'error-param ' . $_GET['error']);
 }
 if (!isset($_GET['code'])) {
-    google_redirect('login.php?google=error');
+    google_redirect('login.php?google=error', 'no-code');
 }
 if (GOOGLE_CLIENT_ID === '' || GOOGLE_CLIENT_SECRET === '') {
-    google_redirect('login.php?google=unconfigured');
+    google_redirect('login.php?google=unconfigured', 'unconfigured');
 }
 
 // Exchange the authorization code for tokens
@@ -48,24 +55,26 @@ $tok_code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 $tok = json_decode((string)$tok_body, true);
 if ($tok_code < 200 || $tok_code >= 300 || empty($tok['id_token'])) {
-    google_redirect('login.php?google=token');
+    google_redirect('login.php?google=token', 'token-failed http=' . $tok_code . ' body=' . substr((string)$tok_body, 0, 300));
 }
 
 // Validate the ID token with Google (issuer, audience, expiry, email, verified)
 $info_body = file_get_contents('https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode($tok['id_token']));
 $info = json_decode((string)$info_body, true);
 if (empty($info['email']) || ($info['aud'] ?? '') !== GOOGLE_CLIENT_ID) {
-    google_redirect('login.php?google=invalid');
+    google_redirect('login.php?google=invalid', 'invalid-aud aud=' . ($info['aud'] ?? 'none'));
 }
 if (isset($info['exp']) && (int)$info['exp'] < time()) {
-    google_redirect('login.php?google=expired');
+    google_redirect('login.php?google=expired', 'expired');
 }
 $valid_iss = ['accounts.google.com', 'https://accounts.google.com'];
 if (!in_array($info['iss'] ?? '', $valid_iss, true)) {
-    google_redirect('login.php?google=invalid');
+    google_redirect('login.php?google=invalid', 'invalid-iss ' . ($info['iss'] ?? 'none'));
 }
-if ((int)($info['email_verified'] ?? 0) !== 1) {
-    google_redirect('login.php?google=unverified');
+$ev = $info['email_verified'] ?? false;
+$email_verified = ($ev === true || $ev === 'true' || $ev === 1 || $ev === '1');
+if (!$email_verified) {
+    google_redirect('login.php?google=unverified', 'email-unverified email=' . ($info['email'] ?? '') . ' ev=' . var_export($info['email_verified'] ?? null, true));
 }
 
 $g_email = $info['email'];
@@ -97,7 +106,7 @@ if ($res && ($user = mysqli_fetch_assoc($res))) {
     $stmt4 = mysqli_prepare($conn, "INSERT INTO users (full_name, email, password, email_verified) VALUES (?, ?, ?, 1)");
     mysqli_stmt_bind_param($stmt4, "sss", $g_name, $g_email, $pass);
     if (!mysqli_stmt_execute($stmt4)) {
-        google_redirect('login.php?google=error');
+        google_redirect('login.php?google=error', 'user-insert-failed');
     }
     $stmt5 = mysqli_prepare($conn, "SELECT * FROM users WHERE email=? LIMIT 1");
     mysqli_stmt_bind_param($stmt5, "s", $g_email);

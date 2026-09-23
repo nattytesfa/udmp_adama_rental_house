@@ -76,11 +76,17 @@ if(isset($_POST['login'])){
 $google_enabled = defined('GOOGLE_CLIENT_ID') && GOOGLE_CLIENT_ID !== '';
 $google_err = '';
 if(isset($_GET['google'])){
-    $google_err = $_GET['google'] === 'denied'
-        ? 'Sign-in with Google was cancelled.'
-        : ($_GET['google'] === 'unverified'
-            ? 'Your Google account email is not verified. Please verify it with Google and try again.'
-            : 'Google sign-in failed. Please try again, or use email &amp; password.');
+    $google_msgs = [
+        'denied'       => 'Sign-in with Google was cancelled.',
+        'state'        => 'Security check failed. Please try again.',
+        'token'        => 'Could not exchange the Google sign-in token. Please try again.',
+        'invalid'      => 'Google rejected the sign-in. Please try again.',
+        'expired'      => 'The Google sign-in expired. Please try again.',
+        'unconfigured' => 'Google Sign-In is not configured yet.',
+        'unverified'   => 'Your Google account email is not verified. Please verify it with Google and try again.',
+    ];
+    $google_err = $google_msgs[$_GET['google']]
+        ?? 'Google sign-in failed. Please try again, or use email &amp; password.';
 }
 ?>
 <!DOCTYPE html>
