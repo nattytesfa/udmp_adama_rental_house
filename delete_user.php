@@ -22,7 +22,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     }
 
     // Load the target user
-    $res = mysqli_query($conn, "SELECT * FROM users WHERE id=$target_id");
+    $stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE id=?");
+    mysqli_stmt_bind_param($stmt, "i", $target_id);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
     if($res && ($target = mysqli_fetch_assoc($res))){
 
         // Cannot delete another super admin (rank 2)
@@ -32,7 +35,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         }
 
         // Delete their house image files
-        $houses = mysqli_query($conn, "SELECT id, image, video_file FROM houses WHERE user_id=$target_id");
+        $stmt2 = mysqli_prepare($conn, "SELECT id, image, video_file FROM houses WHERE user_id=?");
+        mysqli_stmt_bind_param($stmt2, "i", $target_id);
+        mysqli_stmt_execute($stmt2);
+        $houses = mysqli_stmt_get_result($stmt2);
         $hids = [];
         if($houses){
             while($h = mysqli_fetch_assoc($houses)){
@@ -47,8 +53,13 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         }
 
         if(!empty($hids)){
-            $in = implode(',', $hids);
-            $imgs = mysqli_query($conn, "SELECT filename FROM house_images WHERE house_id IN ($in)");
+            $placeholders = implode(',', array_fill(0, count($hids), '?'));
+            $types = str_repeat('i', count($hids));
+
+            $stmt3 = mysqli_prepare($conn, "SELECT filename FROM house_images WHERE house_id IN ($placeholders)");
+            mysqli_stmt_bind_param($stmt3, $types, ...$hids);
+            mysqli_stmt_execute($stmt3);
+            $imgs = mysqli_stmt_get_result($stmt3);
             if($imgs){
                 while($im = mysqli_fetch_assoc($imgs)){
                     if(!empty($im['filename']) && file_exists("uploads/" . $im['filename'])){
@@ -56,17 +67,47 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
                     }
                 }
             }
-            mysqli_query($conn, "DELETE FROM house_images WHERE house_id IN ($in)");
+            $stmt4 = mysqli_prepare($conn, "DELETE FROM house_images WHERE house_id IN ($placeholders)");
+            mysqli_stmt_bind_param($stmt4, $types, ...$hids);
+            mysqli_stmt_execute($stmt4);
+
+            $stmt_ha = mysqli_prepare($conn, "DELETE FROM house_amenities WHERE house_id IN ($placeholders)");
+            mysqli_stmt_bind_param($stmt_ha, $types, ...$hids);
+            mysqli_stmt_execute($stmt_ha);
         }
 
         // Delete their houses and requests (cleanup)
-        mysqli_query($conn, "DELETE FROM requests WHERE user_id=$target_id");
-        mysqli_query($conn, "DELETE FROM requests WHERE house_id IN (SELECT id FROM houses WHERE user_id=$target_id)");
-        mysqli_query($conn, "DELETE FROM rental_requests WHERE house_id IN (SELECT id FROM houses WHERE user_id=$target_id)");
-        mysqli_query($conn, "DELETE FROM rental_requests WHERE user_id=$target_id");
-        mysqli_query($conn, "DELETE FROM houses WHERE user_id=$target_id");
-        mysqli_query($conn, "DELETE FROM admin_invites WHERE user_id=$target_id");
-        mysqli_query($conn, "DELETE FROM users WHERE id=$target_id");
+        $del = mysqli_prepare($conn, "DELETE FROM requests WHERE user_id=?");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
+
+        $del = mysqli_prepare($conn, "DELETE FROM requests WHERE house_id IN (SELECT id FROM houses WHERE user_id=?)");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
+
+        $del = mysqli_prepare($conn, "DELETE FROM rental_requests WHERE house_id IN (SELECT id FROM houses WHERE user_id=?)");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
+
+        $del = mysqli_prepare($conn, "DELETE FROM rental_requests WHERE user_id=?");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
+
+        $del = mysqli_prepare($conn, "DELETE FROM houses WHERE user_id=?");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
+
+        $del = mysqli_prepare($conn, "DELETE FROM notifications WHERE user_id=?");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
+
+        $del = mysqli_prepare($conn, "DELETE FROM admin_invites WHERE user_id=?");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
+
+        $del = mysqli_prepare($conn, "DELETE FROM users WHERE id=?");
+        mysqli_stmt_bind_param($del, "i", $target_id);
+        mysqli_stmt_execute($del);
 
         header("Location: admin_manage_users.php?msg=deleted");
         exit();

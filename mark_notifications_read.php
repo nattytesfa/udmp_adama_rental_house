@@ -12,5 +12,7 @@ if(!isset($_SESSION['user_id'])){
 csrf_validate();
 
 $uid = (int)$_SESSION['user_id'];
-mysqli_query($conn, "UPDATE notifications SET is_read=1 WHERE user_id=$uid AND is_read=0");
+$stmt = mysqli_prepare($conn, "UPDATE notifications SET is_read=1 WHERE user_id=? AND is_read=0");
+mysqli_stmt_bind_param($stmt, "i", $uid);
+mysqli_stmt_execute($stmt);
 echo '1';

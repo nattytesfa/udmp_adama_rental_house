@@ -1,9 +1,12 @@
 # Block direct execution of any script inside uploads/ (stored-XSS/RCE guard).
-RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .cgi .pl .py .sh
-RemoveType .php .phtml .php3 .php4 .php5 .php7 .phps .cgi .pl .py .sh
-Options -Indexes
+# Also forcefully prevent the PHP handler from processing any file in this directory.
+php_flag engine off
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .phps .phar .cgi .pl .py .sh
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .phps .phar .cgi .pl .py .sh
+AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .phps .phar
+Options -Indexes -ExecCGI
 <IfModule mod_authz_core.c>
-    <FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|cgi|pl|py|sh|htaccess)$">
+    <FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|phar|cgi|pl|py|sh|exe|htaccess)$">
         Require all denied
     </FilesMatch>
     <Files "mail_log.txt">
@@ -11,7 +14,7 @@ Options -Indexes
     </Files>
 </IfModule>
 <IfModule !mod_authz_core.c>
-    <FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|cgi|pl|py|sh|htaccess)$">
+    <FilesMatch "\.(php|phtml|php3|php4|php5|php7|phps|phar|cgi|pl|py|sh|exe|htaccess)$">
         Order allow,deny
         Deny from all
     </FilesMatch>

@@ -15,7 +15,10 @@ $error = '';
 $msg = '';
 
 // Auto-detect any pending invite for this user (no re-login required)
-$inv_check = mysqli_query($conn, "SELECT id FROM admin_invites WHERE user_id=$uid AND status='pending' LIMIT 1");
+$inv_stmt = mysqli_prepare($conn, "SELECT id FROM admin_invites WHERE user_id=? AND status='pending' LIMIT 1");
+mysqli_stmt_bind_param($inv_stmt, "i", $uid);
+mysqli_stmt_execute($inv_stmt);
+$inv_check = mysqli_stmt_get_result($inv_stmt);
 if($inv_check && mysqli_num_rows($inv_check) > 0){
     $_SESSION['pending_admin_key'] = 1;
 } elseif(!isset($_SESSION['pending_admin_key'])){
@@ -28,14 +31,21 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     $key = trim($_POST['key'] ?? '');
     $key_hash = hash('sha256', $key);
 
-    $kres = mysqli_query($conn, "SELECT * FROM admin_invites WHERE user_id=$uid AND status='pending' LIMIT 1");
+    $kstmt = mysqli_prepare($conn, "SELECT * FROM admin_invites WHERE user_id=? AND status='pending' LIMIT 1");
+    mysqli_stmt_bind_param($kstmt, "i", $uid);
+    mysqli_stmt_execute($kstmt);
+    $kres = mysqli_stmt_get_result($kstmt);
     $inv = $kres ? mysqli_fetch_assoc($kres) : null;
 
     if($inv && hash_equals($inv['key_hash'], $key_hash)){
         // Promote to admin
         $inv_id = (int)$inv['id'];
-        mysqli_query($conn, "UPDATE users SET is_admin = 1 WHERE id=$uid");
-        mysqli_query($conn, "UPDATE admin_invites SET status='accepted' WHERE id=$inv_id");
+        $upd1 = mysqli_prepare($conn, "UPDATE users SET is_admin = 1 WHERE id=?");
+        mysqli_stmt_bind_param($upd1, "i", $uid);
+        mysqli_stmt_execute($upd1);
+        $upd2 = mysqli_prepare($conn, "UPDATE admin_invites SET status='accepted' WHERE id=?");
+        mysqli_stmt_bind_param($upd2, "i", $inv_id);
+        mysqli_stmt_execute($upd2);
 
         unset($_SESSION['pending_admin_key']);
         $_SESSION['is_admin'] = 1;

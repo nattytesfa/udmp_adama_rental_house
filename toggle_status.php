@@ -20,7 +20,10 @@ if($house_id <= 0){
 csrf_validate();
 
 // Load the house, ensuring it belongs to the current user
-$row = mysqli_fetch_assoc(mysqli_query($conn, "SELECT status, is_approved FROM houses WHERE id=$house_id AND user_id=$me"));
+$stmt = mysqli_prepare($conn, "SELECT status, is_approved FROM houses WHERE id=? AND user_id=?");
+mysqli_stmt_bind_param($stmt, "ii", $house_id, $me);
+mysqli_stmt_execute($stmt);
+$row = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
 
 if(!$row){
     header("Location: manage_houses.php");
@@ -42,22 +45,33 @@ if($current === 'Available'){
 
 if($new_status === 'Available'){
     // Close any accepted rental agreement for this house so it can be re-listed cleanly
-    $active = mysqli_query($conn, "SELECT rr.id, rr.user_id, h.kebele
+    $stmt2 = mysqli_prepare($conn, "SELECT rr.id, rr.user_id, h.kebele
                                    FROM rental_requests rr
                                    JOIN houses h ON rr.house_id = h.id
-                                   WHERE rr.house_id=$house_id AND rr.status='accepted'");
+                                   WHERE rr.house_id=? AND rr.status='accepted'");
+    mysqli_stmt_bind_param($stmt2, "i", $house_id);
+    mysqli_stmt_execute($stmt2);
+    $active = mysqli_stmt_get_result($stmt2);
     if($active){
         while($a = mysqli_fetch_assoc($active)){
             $tenant_id = (int)$a['user_id'];
-            mysqli_query($conn, "UPDATE rental_requests SET status='completed' WHERE id={$a['id']}");
-            $msg = mysqli_real_escape_string($conn, "The property in Kebele {$a['kebele']} has been marked available again by the owner.");
-            mysqli_query($conn, "INSERT INTO notifications (user_id, type, title, message, link)
-                                 VALUES ($tenant_id, 'info', 'Rental ended', '$msg', 'index.php')");
+            $rr_id = (int)$a['id'];
+            $stmt3 = mysqli_prepare($conn, "UPDATE rental_requests SET status='completed' WHERE id=?");
+            mysqli_stmt_bind_param($stmt3, "i", $rr_id);
+            mysqli_stmt_execute($stmt3);
+            $notif_msg = "The property in Kebele {$a['kebele']} has been marked available again by the owner.";
+            $stmt4 = mysqli_prepare($conn, "INSERT INTO notifications (user_id, type, title, message, link) VALUES (?, 'info', 'Rental ended', ?, 'index.php')");
+            mysqli_stmt_bind_param($stmt4, "is", $tenant_id, $notif_msg);
+            mysqli_stmt_execute($stmt4);
         }
     }
-    mysqli_query($conn, "UPDATE houses SET status='Available' WHERE id=$house_id AND user_id=$me");
+    $stmt5 = mysqli_prepare($conn, "UPDATE houses SET status='Available' WHERE id=? AND user_id=?");
+    mysqli_stmt_bind_param($stmt5, "ii", $house_id, $me);
+    mysqli_stmt_execute($stmt5);
 } else {
-    mysqli_query($conn, "UPDATE houses SET status='Rented' WHERE id=$house_id AND user_id=$me");
+    $stmt5 = mysqli_prepare($conn, "UPDATE houses SET status='Rented' WHERE id=? AND user_id=?");
+    mysqli_stmt_bind_param($stmt5, "ii", $house_id, $me);
+    mysqli_stmt_execute($stmt5);
 }
 
 header("Location: manage_houses.php?msg=status_saved");

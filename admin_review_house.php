@@ -15,7 +15,10 @@ if($id <= 0){
     exit();
 }
 
-$q = mysqli_query($conn, "SELECT h.*, u.full_name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, u.phone2 AS owner_phone2 FROM houses h LEFT JOIN users u ON h.user_id = u.id WHERE h.id = $id");
+$stmt = mysqli_prepare($conn, "SELECT h.*, u.full_name AS owner_name, u.email AS owner_email, u.phone AS owner_phone, u.phone2 AS owner_phone2 FROM houses h LEFT JOIN users u ON h.user_id = u.id WHERE h.id = ?");
+mysqli_stmt_bind_param($stmt, "i", $id);
+mysqli_stmt_execute($stmt);
+$q = mysqli_stmt_get_result($stmt);
 $house = $q ? mysqli_fetch_assoc($q) : null;
 if(!$house){
     header('Location: admin_manage_requests.php');
@@ -24,12 +27,18 @@ if(!$house){
 
 $imgs = [];
 if(!empty($house['image'])) $imgs[] = $house['image'];
-$gi = mysqli_query($conn, "SELECT filename FROM house_images WHERE house_id=$id ORDER BY sort_order ASC, id ASC");
+$gstmt = mysqli_prepare($conn, "SELECT filename FROM house_images WHERE house_id=? ORDER BY sort_order ASC, id ASC");
+mysqli_stmt_bind_param($gstmt, "i", $id);
+mysqli_stmt_execute($gstmt);
+$gi = mysqli_stmt_get_result($gstmt);
 if($gi){ while($g = mysqli_fetch_assoc($gi)) $imgs[] = $g['filename']; }
 $imgs = array_values(array_unique($imgs));
 
 $amenities = [];
-$aq = mysqli_query($conn, "SELECT a.name, a.icon FROM amenities a JOIN house_amenities ha ON ha.amenity_id = a.id WHERE ha.house_id = $id ORDER BY a.sort_order");
+$astmt = mysqli_prepare($conn, "SELECT a.name, a.icon FROM amenities a JOIN house_amenities ha ON ha.amenity_id = a.id WHERE ha.house_id = ? ORDER BY a.sort_order");
+mysqli_stmt_bind_param($astmt, "i", $id);
+mysqli_stmt_execute($astmt);
+$aq = mysqli_stmt_get_result($astmt);
 if($aq){ while($a = mysqli_fetch_assoc($aq)) $amenities[] = $a; }
 
 $status_val = $house['status'] ?? '';
@@ -43,7 +52,10 @@ $is_approved = (int)$house['is_approved'] === 1;
 
 $req_type = 'new';
 $changes = [];
-$rq = mysqli_query($conn, "SELECT type, changes FROM requests WHERE house_id=$id AND status=0 ORDER BY id DESC LIMIT 1");
+$rstmt = mysqli_prepare($conn, "SELECT type, changes FROM requests WHERE house_id=? AND status=0 ORDER BY id DESC LIMIT 1");
+mysqli_stmt_bind_param($rstmt, "i", $id);
+mysqli_stmt_execute($rstmt);
+$rq = mysqli_stmt_get_result($rstmt);
 if($rq && $rrow = mysqli_fetch_assoc($rq)){
     $req_type = strtolower($rrow['type'] ?? 'new');
     if(!empty($rrow['changes'])){
@@ -51,7 +63,10 @@ if($rq && $rrow = mysqli_fetch_assoc($rq)){
         if(is_array($decoded)) $changes = $decoded;
     }
 }
-$prev_app = mysqli_query($conn, "SELECT COUNT(*) FROM requests WHERE house_id=$id AND status=1");
+$pstmt = mysqli_prepare($conn, "SELECT COUNT(*) FROM requests WHERE house_id=? AND status=1");
+mysqli_stmt_bind_param($pstmt, "i", $id);
+mysqli_stmt_execute($pstmt);
+$prev_app = mysqli_stmt_get_result($pstmt);
 $was_prev_approved = ($prev_app && ($c = mysqli_fetch_row($prev_app)) && (int)$c[0] > 0);
 $is_edited = ($req_type === 'edit') || ($was_prev_approved && $is_pending && !$is_approved);
 

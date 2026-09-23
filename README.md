@@ -31,6 +31,7 @@ A PHP/MySQL rental house marketplace for **Adama City, Ethiopia** (plain PHP, no
 - **Linux:** `sudo /opt/lampp/start` (or `./ctlscript.sh start apache`).
 - **macOS:** open the **XAMPP Control** app → "Manage Servers" → Start **Apache** + **MySQL**.
 
+<<<<<<< HEAD
 Copy the project folder into the web root (path from the table above).
 
 ### 2️⃣ Create the secrets file
@@ -38,6 +39,15 @@ Copy the template and fill it in — **never** edit the template itself:
 
 ```
 config/config_secrets.example.php  →  config/config_secrets.php
+=======
+### 2️⃣ Configure Database Credentials
+Match MySQL credentials in `includes/db.php` (or copy `config/config_secrets.example.php` to `config/config_secrets.php`):
+```php
+$host   = 'localhost';
+$user   = 'root';
+$pass   = '';          // default empty in XAMPP — change if yours has a password
+$dbname = 'rental_db'; // database name (the app creates it for you)
+>>>>>>> upstream/main
 ```
 
 Fill in (see the file for a full breakdown):
@@ -147,6 +157,7 @@ The app sends verification/invite emails through the [Brevo](https://www.brevo.c
 
 | Issue | Solution |
 |-------|----------|
+<<<<<<< HEAD
 | **"Cannot connect to MySQL"** | Check `DB_*` values in `config/config_secrets.php` and that MySQL is started. |
 | **Database/tables missing** | Run `setup.php` once. On MySQL 8.x remember `mysqli_report(MYSQLI_REPORT_OFF)` keeps setup from aborting if a statement fails. |
 | **White screen** | A PHP fatal with error display off. Enable `display_errors=On` (add `display_errors=On` to `.user.ini` at web root on InfinityFree) or check `logs/`. PHP 8.1+ throws `mysqli_sql_exception` on query errors — usually a missing table or wrong query. |
@@ -154,6 +165,13 @@ The app sends verification/invite emails through the [Brevo](https://www.brevo.c
 | **Setup key not showing** | The key only shows while **no admin exists**. |
 | **"Email sent" but nothing arrives** | (1) `BREVO_API_KEY` must be a real key, not the `xkeysib-REPLACE` placeholder; (2) `BREVO_FROM_EMAIL` must be a **verified sender** in Brevo (do the single-address verification, not domain auth); (3) check `logs/mail_log.txt` for `BREVO ERROR` codes; (4) send to a real inbox, not self-sent/seen-as-spam. |
 | **"Invalid or expired form token"** | Old page open in a stale tab. Reload the page and retry — every state-changing form/request carries a CSRF token. |
+=======
+| **"Connection failed"** | Check `$pass` in `includes/db.php` (XAMPP default is empty) and that MySQL is started. |
+| **Database/tables missing** | Run `setup.php` once to create everything. |
+| **Can't log in as admin** | You must **register the first Super Admin** via `setup.php` key (see Installation step 4). |
+| **Setup key not showing** | The key only shows while **no admin exists** — once an admin is created it's destroyed. |
+| **Landlord promoted but not admin** | They must enter the invite key at `admin_key.php` (they may have clicked "Skip for now"). |
+>>>>>>> upstream/main
 | **Port 80/443 in use** | Stop Skype/Teams/IIS or change Apache ports in XAMPP. |
 | **Uploads not saving on local** | Ensure `uploads/` exists and Apache can write to it. |
 | **Can't upload on shared host** | `uploads/` is gitignored — create it empty on the server, then add images via the site or FTP. |

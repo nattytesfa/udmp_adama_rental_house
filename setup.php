@@ -1,6 +1,14 @@
 <?php
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING);
 ini_set('display_errors', 0);
+
+// ── Guard: block re-runs after initial setup ──────────────────────────
+$lock_file = __DIR__ . '/installed.lock';
+if (file_exists($lock_file)) {
+    http_response_code(403);
+    die('<!DOCTYPE html><html><head><title>Setup Locked</title></head><body style="font-family:sans-serif;text-align:center;padding:80px"><h1>⛔ Setup Locked</h1><p>Setup has already been completed. Delete <code>installed.lock</code> to re-run.</p></body></html>');
+}
+
 // Old mysqli behaviour: return false on error instead of throwing exceptions
 // (shared hosts like InfinityFree deny CREATE DATABASE, which would otherwise abort setup).
 mysqli_report(MYSQLI_REPORT_OFF);
@@ -34,13 +42,20 @@ if (!$conn) {
         status INT DEFAULT 0,
         email_verified TINYINT(1) NOT NULL DEFAULT 0,
         verify_token VARCHAR(64) NULL,
-        verify_expires DATETIME NULL
+        verify_expires DATETIME NULL,
+        reset_token VARCHAR(64) NULL,
+        reset_expires DATETIME NULL
     )");
 
     $vcols = @mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'email_verified'");
     if (!$vcols || mysqli_num_rows($vcols) == 0) {
         mysqli_query($conn, "ALTER TABLE users ADD COLUMN email_verified TINYINT(1) NOT NULL DEFAULT 0 AFTER status, ADD COLUMN verify_token VARCHAR(64) NULL, ADD COLUMN verify_expires DATETIME NULL");
         mysqli_query($conn, "UPDATE users SET email_verified=1");
+    }
+
+    $rcols = @mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'reset_token'");
+    if (!$rcols || mysqli_num_rows($rcols) == 0) {
+        mysqli_query($conn, "ALTER TABLE users ADD COLUMN reset_token VARCHAR(64) NULL, ADD COLUMN reset_expires DATETIME NULL");
     }
 
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS houses (
@@ -58,8 +73,7 @@ if (!$conn) {
         video_file VARCHAR(255),
         status VARCHAR(50) DEFAULT 'Pending',
         is_approved INT DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        delete_key VARCHAR(50)
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )");
 
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS requests (
@@ -112,6 +126,13 @@ if (!$conn) {
         status VARCHAR(20) DEFAULT 'pending',
         message TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )");
+
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS login_attempts (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        identifier VARCHAR(255) NOT NULL,
+        attempt_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_identifier_time (identifier, attempt_at)
     )");
 
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS amenities (
@@ -174,20 +195,24 @@ if (!$conn) {
     if ($total_users > 0) {
         // App is already in use — NEVER regenerate or display the admin setup key.
         mysqli_query($conn, "DELETE FROM app_config WHERE config_key='admin_setup_key'");
+        // Create lock file so setup.php is blocked on future visits
+        @file_put_contents($lock_file, 'Setup completed on ' . date('Y-m-d H:i:s') . PHP_EOL);
         $fatal = "Setup has already been completed (this database is in use). "
                . "Delete <b>setup.php</b> from the server. "
                . "If you need another admin, sign in and use the admin invite flow.";
     } else {
         $key = bin2hex(random_bytes(16));
         $safe = mysqli_real_escape_string($conn, $key);
-        mysqli_query($conn, "INSERT INTO app_config (config_key, config_value) VALUES ('admin_setup_key', '$safe')");
+        // Use REPLACE INTO to handle duplicate key on page refresh
+        mysqli_query($conn, "REPLACE INTO app_config (config_key, config_value) VALUES ('admin_setup_key', '$safe')");
         $msg = "Database installed successfully. No admin exists yet.";
         $msg .= "<br>Register an account at <b>register.php</b> with the admin setup key";
         $msg .= " (below) and that account becomes the admin.";
         $stage = "setup-key";
     }
 
-    @mkdir(__DIR__ . '/uploads', 0777, true);
+    @mkdir(__DIR__ . '/uploads', 0755, true);
+    @file_put_contents($lock_file, "Setup completed at " . date('Y-m-d H:i:s') . "\n");
 }
 ?>
 <!DOCTYPE html>

@@ -20,10 +20,12 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     if($action == 'generate'){
         $email = trim($_POST['email']);
-        $email = mysqli_real_escape_string($conn, $email);
 
         // find the user by email
-        $res = mysqli_query($conn, "SELECT * FROM users WHERE email='$email' LIMIT 1");
+        $stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE email=? LIMIT 1");
+        mysqli_stmt_bind_param($stmt, "s", $email);
+        mysqli_stmt_execute($stmt);
+        $res = mysqli_stmt_get_result($stmt);
         if($res && ($user = mysqli_fetch_assoc($res))){
             $uid = (int)$user['id'];
             if((int)$user['is_admin'] >= 1){
@@ -32,17 +34,21 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
                 // generate a one-time key for this email
                 $key = bin2hex(random_bytes(16)); // 32 char
                 $key_hash = hash('sha256', $key);
-                $safe_hash = mysqli_real_escape_string($conn, $key_hash);
 
                 // invalidate any existing pending invite for this user
-                mysqli_query($conn, "DELETE FROM admin_invites WHERE user_id=$uid AND status='pending'");
+                $del_stmt = mysqli_prepare($conn, "DELETE FROM admin_invites WHERE user_id=? AND status='pending'");
+                mysqli_stmt_bind_param($del_stmt, "i", $uid);
+                mysqli_stmt_execute($del_stmt);
 
-                $insert = mysqli_query($conn, "INSERT INTO admin_invites (user_id, email, key_hash, status, created_by) VALUES ($uid, '$email', '$safe_hash', 'pending', {$_SESSION['user_id']})");
+                $created_by = (int)$_SESSION['user_id'];
+                $ins_stmt = mysqli_prepare($conn, "INSERT INTO admin_invites (user_id, email, key_hash, status, created_by) VALUES (?, ?, ?, 'pending', ?)");
+                mysqli_stmt_bind_param($ins_stmt, "issi", $uid, $email, $key_hash, $created_by);
+                $insert = mysqli_stmt_execute($ins_stmt);
                 if($insert){
                     $generated_key = $key;
                     $msg = "Invite generated for <b>" . htmlspecialchars($email) . "</b>. Share the key below with this user — it is valid for a single use.";
                 } else {
-                    $error = "Failed to create invite: " . mysqli_error($conn);
+                    $error = "Failed to create invite.";
                 }
             }
         } else {
@@ -52,7 +58,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
 
     if($action == 'revoke'){
         $invite_id = (int)($_POST['invite_id'] ?? 0);
-        mysqli_query($conn, "DELETE FROM admin_invites WHERE id=$invite_id");
+        $rev_stmt = mysqli_prepare($conn, "DELETE FROM admin_invites WHERE id=?");
+        mysqli_stmt_bind_param($rev_stmt, "i", $invite_id);
+        mysqli_stmt_execute($rev_stmt);
         $msg = "Invite revoked.";
     }
 }

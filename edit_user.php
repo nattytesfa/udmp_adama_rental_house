@@ -14,10 +14,13 @@ $my_id = (int)($_SESSION['user_id'] ?? 0);
 if($_SERVER['REQUEST_METHOD'] === 'POST'){
     csrf_validate();
     $target_id = (int)$_POST['user_id'];
-    $full_name = mysqli_real_escape_string($conn, trim($_POST['full_name'] ?? ''));
-    $email = mysqli_real_escape_string($conn, trim($_POST['email'] ?? ''));
+    $full_name = trim($_POST['full_name'] ?? '');
+    $email = trim($_POST['email'] ?? '');
 
-    $res = mysqli_query($conn, "SELECT is_admin FROM users WHERE id=$target_id");
+    $stmt = mysqli_prepare($conn, "SELECT is_admin FROM users WHERE id=?");
+    mysqli_stmt_bind_param($stmt, "i", $target_id);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
     if(!$res || mysqli_num_rows($res) === 0){ die('User not found'); }
     $target = mysqli_fetch_assoc($res);
     $target_level = (int)$target['is_admin'];
@@ -26,13 +29,30 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         die('Only Super Admins can edit other admin accounts.');
     }
 
-    mysqli_query($conn, "UPDATE users SET full_name='$full_name', email='$email' WHERE id=$target_id");
+    if($full_name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)){
+        die('Invalid name or email address.');
+    }
+
+    $dup_stmt = mysqli_prepare($conn, "SELECT id FROM users WHERE email=? AND id<>?");
+    mysqli_stmt_bind_param($dup_stmt, "si", $email, $target_id);
+    mysqli_stmt_execute($dup_stmt);
+    $dup_res = mysqli_stmt_get_result($dup_stmt);
+    if($dup_res && mysqli_num_rows($dup_res) > 0){
+        die('An account with this email address already exists.');
+    }
+
+    $stmt2 = mysqli_prepare($conn, "UPDATE users SET full_name=?, email=? WHERE id=?");
+    mysqli_stmt_bind_param($stmt2, "ssi", $full_name, $email, $target_id);
+    mysqli_stmt_execute($stmt2);
     header('Location: admin_manage_users.php?updated=1');
     exit;
 }
 
 $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-$res = mysqli_query($conn, "SELECT id, full_name, email, is_admin FROM users WHERE id=$id");
+$stmt3 = mysqli_prepare($conn, "SELECT id, full_name, email, is_admin FROM users WHERE id=?");
+mysqli_stmt_bind_param($stmt3, "i", $id);
+mysqli_stmt_execute($stmt3);
+$res = mysqli_stmt_get_result($stmt3);
 if(!$res || mysqli_num_rows($res) === 0){ die('User not found'); }
 $user = mysqli_fetch_assoc($res);
 ?>

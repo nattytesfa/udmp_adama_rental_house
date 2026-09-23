@@ -3,15 +3,21 @@ include('includes/db.php');
 
 $status = 'invalid';
 if (isset($_GET['token']) && $_GET['token'] !== '') {
-    $token = mysqli_real_escape_string($conn, $_GET['token']);
-    $res = mysqli_query($conn, "SELECT id, full_name, email, email_verified, verify_expires FROM users WHERE verify_token='$token' LIMIT 1");
+    $token = $_GET['token'];
+    $stmt = mysqli_prepare($conn, "SELECT id, full_name, email, email_verified, verify_expires FROM users WHERE verify_token=? LIMIT 1");
+    mysqli_stmt_bind_param($stmt, "s", $token);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
     if ($res && ($user = mysqli_fetch_assoc($res))) {
         if ((int)$user['email_verified'] === 1) {
             $status = 'already';
         } elseif ($user['verify_expires'] !== null && strtotime($user['verify_expires']) < time()) {
             $status = 'expired';
         } else {
-            mysqli_query($conn, "UPDATE users SET email_verified=1, verify_token=NULL, verify_expires=NULL WHERE id=" . (int)$user['id']);
+            $uid = (int)$user['id'];
+            $stmt2 = mysqli_prepare($conn, "UPDATE users SET email_verified=1, verify_token=NULL, verify_expires=NULL WHERE id=?");
+            mysqli_stmt_bind_param($stmt2, "i", $uid);
+            mysqli_stmt_execute($stmt2);
             $status = 'ok';
         }
     }

@@ -32,8 +32,11 @@ if (isset($_GET['resend'])) {
 
 $dev_verify_link = '';
 if (!mail_env_is_configured() && $email !== '') {
-    $esc = mysqli_real_escape_string($conn, rawurldecode($email));
-    $er = mysqli_query($conn, "SELECT verify_token FROM users WHERE email='$esc' AND email_verified=0 AND verify_token IS NOT NULL AND verify_expires > NOW() LIMIT 1");
+    $decoded_email = rawurldecode($email);
+    $stmt = mysqli_prepare($conn, "SELECT verify_token FROM users WHERE email=? AND email_verified=0 AND verify_token IS NOT NULL AND verify_expires > NOW() LIMIT 1");
+    mysqli_stmt_bind_param($stmt, "s", $decoded_email);
+    mysqli_stmt_execute($stmt);
+    $er = mysqli_stmt_get_result($stmt);
     if ($er && ($rdev = mysqli_fetch_assoc($er))) {
         $dev_verify_link = 'verify_email.php?token=' . urlencode($rdev['verify_token']);
     }

@@ -22,7 +22,10 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
     }
 
     // Load the target user
-    $res = mysqli_query($conn, "SELECT * FROM users WHERE id=$target_id");
+    $stmt = mysqli_prepare($conn, "SELECT * FROM users WHERE id=?");
+    mysqli_stmt_bind_param($stmt, "i", $target_id);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
     if($res && ($target = mysqli_fetch_assoc($res))){
 
         // Cannot revoke another super admin (rank 2), only rank 1 admins
@@ -32,7 +35,9 @@ if($_SERVER['REQUEST_METHOD'] == 'POST'){
         }
 
         // Revoke: demote from admin (1) back to landlord (0)
-        mysqli_query($conn, "UPDATE users SET is_admin = 0 WHERE id=$target_id");
+        $stmt2 = mysqli_prepare($conn, "UPDATE users SET is_admin = 0 WHERE id=?");
+        mysqli_stmt_bind_param($stmt2, "i", $target_id);
+        mysqli_stmt_execute($stmt2);
 
         header("Location: admin_manage_users.php?msg=revoked");
         exit();

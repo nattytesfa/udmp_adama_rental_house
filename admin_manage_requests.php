@@ -16,12 +16,19 @@ $requests = mysqli_query($conn, "SELECT r.id AS request_id, r.house_id, r.create
                                  WHERE r.status = 0 ORDER BY r.created_at DESC");
 
 function get_house_images($conn, $house_id){
-    $house_id = (int)$house_id;
     $imgs = [];
-    $fr = mysqli_query($conn, "SELECT image FROM houses WHERE id=$house_id AND image IS NOT NULL AND image <> ''");
+    $fr_stmt = mysqli_prepare($conn, "SELECT image FROM houses WHERE id=? AND image IS NOT NULL AND image <> ''");
+    mysqli_stmt_bind_param($fr_stmt, "i", $house_id);
+    mysqli_stmt_execute($fr_stmt);
+    $fr = mysqli_stmt_get_result($fr_stmt);
     if($fr && ($f = mysqli_fetch_row($fr))) $imgs[] = $f[0];
-    $gi = mysqli_query($conn, "SELECT filename FROM house_images WHERE house_id=$house_id ORDER BY sort_order ASC, id ASC");
+    
+    $gi_stmt = mysqli_prepare($conn, "SELECT filename FROM house_images WHERE house_id=? ORDER BY sort_order ASC, id ASC");
+    mysqli_stmt_bind_param($gi_stmt, "i", $house_id);
+    mysqli_stmt_execute($gi_stmt);
+    $gi = mysqli_stmt_get_result($gi_stmt);
     if($gi){ while($g = mysqli_fetch_assoc($gi)) $imgs[] = $g['filename']; }
+    
     return array_values(array_unique($imgs));
 }
 
@@ -140,7 +147,10 @@ $msg = isset($_GET['msg'], $flash[$_GET['msg']]) ? $flash[$_GET['msg']] : null;
     if($pending_res && mysqli_num_rows($pending_res) > 0): ?>
         <div class="section-title"><i class="fas fa-clock"></i> Pending Listings (need review)</div>
         <?php while($house = mysqli_fetch_assoc($pending_res)):
-            $prev_app = mysqli_query($conn, "SELECT COUNT(*) FROM requests WHERE house_id=" . (int)$house['id'] . " AND status=1");
+            $prev_stmt = mysqli_prepare($conn, "SELECT COUNT(*) FROM requests WHERE house_id=? AND status=1");
+            mysqli_stmt_bind_param($prev_stmt, "i", $house['id']);
+            mysqli_stmt_execute($prev_stmt);
+            $prev_app = mysqli_stmt_get_result($prev_stmt);
             $was_prev_approved = ($prev_app && ($c = mysqli_fetch_row($prev_app)) && (int)$c[0] > 0);
         ?>
             <div class="request-card<?php echo $was_prev_approved ? ' card-edit' : ''; ?>">

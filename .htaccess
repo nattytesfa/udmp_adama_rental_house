@@ -1,28 +1,49 @@
 DirectoryIndex Home.php
 Options -Indexes
 
+# ── Security Headers ──────────────────────────────────────────────────
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
 # Guard sensitive/config files from direct web access (server-side include() still works).
 <IfModule mod_authz_core.c>
-    <FilesMatch "\.(sql|log)$">
+    <FilesMatch "\.(sql|log|lock)$">
         Require all denied
     </FilesMatch>
-    <FilesMatch "^\.git">
+    <FilesMatch "^\.">
         Require all denied
     </FilesMatch>
-    <FilesMatch "^(config_secrets|db|session_config|mail_helper)\.php$">
+    <FilesMatch "^(config_secrets|config_secrets\.example|db|session_config|mail_helper|security)\.php$">
+        Require all denied
+    </FilesMatch>
+    <FilesMatch "^(setup|installed\.lock)">
+        Require all denied
+    </FilesMatch>
+    <FilesMatch "^\.env">
         Require all denied
     </FilesMatch>
 </IfModule>
 <IfModule !mod_authz_core.c>
-    <FilesMatch "\.(sql|log)$">
+    <FilesMatch "\.(sql|log|lock)$">
         Order allow,deny
         Deny from all
     </FilesMatch>
-    <FilesMatch "^\.git">
+    <FilesMatch "^\.">
         Order allow,deny
         Deny from all
     </FilesMatch>
-    <FilesMatch "^(config_secrets|db|session_config|mail_helper)\.php$">
+    <FilesMatch "^(config_secrets|config_secrets\.example|db|session_config|mail_helper|security)\.php$">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+    <FilesMatch "^(setup|installed\.lock)">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+    <FilesMatch "^\.env">
         Order allow,deny
         Deny from all
     </FilesMatch>
